@@ -26,15 +26,16 @@ static ssize_t rmtabs(const char *fname, bool edit) {
   if (!sz) return -1;
 
   // mmap the file contents.
-  void *addr = mmap(NULL, sz, PROT_READ, MAP_PRIVATE, fd, 0);
+  void *addr = mmap(NULL, sz, edit ? (PROT_WRITE | PROT_READ) : PROT_READ,
+                    MAP_SHARED, fd, 0);
   if (!addr) return -1;
 
   // Scan and count.
   ssize_t count = 0;
   const int stride = 8;
-  uint8_t *itr = (uint8_t *)addr;
   const uint8_t *end = ((uint8_t *)addr) + sz;
-  while ((itr + stride) <= end) {
+  uint8_t *itr = (uint8_t *)addr;
+  for (; itr <= end; itr += stride) {
     const uint64_t val = *(uint64_t *)itr;
     // If the byte at bit offset _shift match _val.
 #define BITS_MATCH(_var, _shift, _val) \
@@ -56,18 +57,17 @@ static ssize_t rmtabs(const char *fname, bool edit) {
           ((uint64_t)(0xFF & (uint8_t)(BITS_MATCH(val, 56, 0x09) - 1)) << 56));
     count += (__builtin_popcountll(mask) >> 3);
     // Clear the matches in val and replace with spaces (0x20).
-    if (edit) *(uint64_t *)itr = (val & ~mask) | 0x2020202020202020;
-    itr += stride;
+    if (edit) *(uint64_t *)itr = (val & ~mask) | (mask & 0x2020202020202020);
   }
 
   // Count the remaining values worse case O(7).
   for (; itr < end; ++itr) {
     if (*(uint8_t *)itr == '\t') {
       ++count;
-      if (edit) {
-      }
+      if (edit) *itr = ' ';
     }
   }
+  if (edit) msync(addr, sz, MS_SYNC);
   munmap(addr, sz);
   close(fd);
   return count;
