@@ -1,6 +1,6 @@
 rmtabs: Replace tab characters in a file.
 =========================================
-rmtabs is a proudly over-engineered tool to counat and optionally tab
+rmtabs is a proudly over-engineered tool to count and optionally tab
 characters in a file with spaces.  If the option "-i" is passed to rmtabs, the
 input file is not preserved and is overwritten.
 
